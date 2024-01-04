@@ -5,6 +5,7 @@ import Thread from "../models/thread.model";
 import User from "../models/user.model";
 import { connectToDB } from "../mongoose";
 import mongoose from "mongoose";
+import Community from "../models/community.model";
 
 interface Params {
 	text: string;
@@ -21,6 +22,11 @@ export async function createThread({
 }: Params) {
 	try {
 		connectToDB();
+
+		const communityIdObject = await Community.findOne(
+			{ id: communityId },
+			{ _id: 1 }
+		);
 
 		// if (!mongoose.Types.ObjectId.isValid(author)) {
 		// 	throw new Error("Invalid author ID");
@@ -40,7 +46,7 @@ export async function createThread({
 		const createdThread = await Thread.create({
 			text,
 			author: user._id, // Use the user's ObjectId
-			community: null, // Assign communityId if provided, or leave it null for personal account
+			community: communityIdObject, // Assign communityId if provided, or leave it null for personal account
 		});
 
 		// ...
@@ -48,6 +54,13 @@ export async function createThread({
 		await User.findByIdAndUpdate(user._id, {
 			$push: { threads: createdThread._id },
 		});
+
+		if (communityIdObject) {
+			// Update Community model
+			await Community.findByIdAndUpdate(communityIdObject, {
+				$push: { threads: createdThread._id },
+			});
+		}
 
 		// ...
 
